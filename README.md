@@ -7,7 +7,6 @@
 ### embedding：
 
 example:
-
 ```
 from Bert_Utils.BertVector import BertVector
 bv = BertVector()
