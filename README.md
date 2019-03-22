@@ -1,14 +1,15 @@
-#Rel_Extract
+# Rel_Extract
 
-##Bert_Utils:
+## Bert_Utils:
 
 基于openAI bert model
 
-###embedding：
+### embedding：
 
 example:
-'''
+
+```
 from Bert_Utils.BertVector import BertVector
 bv = BertVector()
 bv.encode(['测试句子'])
-'''
+```
