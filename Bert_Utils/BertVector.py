@@ -1,3 +1,4 @@
+
 from Bert_Utils import modeling
 from Bert_Utils import tokenization
 from Bert_Utils.graph import optimize_graph
@@ -50,12 +51,18 @@ class BertVector:
         self.sentence_len = 0
 
     def get_estimator(self):
+
         from tensorflow.python.estimator.estimator import Estimator
         from tensorflow.python.estimator.run_config import RunConfig
         from tensorflow.python.estimator.model_fn import EstimatorSpec
 
         def model_fn(features, labels, mode, params):
             with tf.gfile.GFile(self.graph_path, 'rb') as f:
+
+                #
+                print("log graph")
+                print(self.graph_path)
+
                 graph_def = tf.GraphDef()
                 graph_def.ParseFromString(f.read())
 
@@ -75,12 +82,18 @@ class BertVector:
         config.log_device_placement = False
         config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
 
+        tmp_config = RunConfig(session_config=config)
+
         return Estimator(model_fn=model_fn, config=RunConfig(session_config=config),
                          params={'batch_size': self.batch_size})
 
     def predict_from_queue(self):
         prediction = self.estimator.predict(input_fn=self.queue_predict_input_fn, yield_single_examples=False)
         for i in prediction:
+            print("log pre")
+
+            print(i)
+
             self.output_queue.put(i)
 
     def encode(self, sentence):

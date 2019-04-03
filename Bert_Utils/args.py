@@ -8,8 +8,8 @@ file_path = os.path.dirname(__file__)
 model_dir = os.path.join(file_path, 'model/chinese_L-12_H-768_A-12/')
 config_name = os.path.join(model_dir, 'bert_config.json')
 ckpt_name = os.path.join(model_dir, 'bert_model.ckpt')
+vocab_file = os.path.join(model_dir, 'vocab.txt')
 output_dir = os.path.join(file_path, 'tmp/result/')
-vocab_file = os.path.join(file_path, 'vocab/vocab.txt')
 data_dir = os.path.join(file_path, 'data/')
 
 num_train_epochs = 10
