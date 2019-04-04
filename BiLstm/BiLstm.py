@@ -38,7 +38,7 @@ class bilstm:
         outputs, f_states = tf.nn.bidirectional_dynamic_rnn(
             fw_cell,
             bw_cell,
-            x,
+            self.x,
             dtype=tf.float32,
             sequence_length=length
         )
@@ -55,8 +55,8 @@ class bilstm:
 
         logits = tf.add(tf.matmul(f_outputs, w), b)
 
-        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y))
-        self.opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
+        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.y))
+        self.opt = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
         self.correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(self.y, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
