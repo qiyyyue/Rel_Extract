@@ -56,7 +56,7 @@ def make_data(file_name: str, max_count) -> List[dict]:
     return data, count, dictionary, reversed_dictionary
 
 
-def generate_batck(batch_size: int, num_skips: int, skip_window: int, data: List[int]):
+def generate_skip_batch(batch_size: int, num_skips: int, skip_window: int, data: List[int]):
     data_index = 0
     while True:
         batch = np.ndarray(shape=(batch_size), dtype=np.int32)
@@ -83,6 +83,38 @@ def generate_batck(batch_size: int, num_skips: int, skip_window: int, data: List
         data_index = (data_index + len(data) - span) % len(data)
         yield batch, labels
 
+def generate_cbow_batch(batch_size: int, cbow_window: int, data: List[int]):
+    data_index = 0
+    while True:
+        span = 2 * cbow_window + 1
+        # 去除中心word: span - 1
+        batch = np.ndarray(shape=(batch_size, span - 1), dtype=np.int32)
+        labels = np.ndarray(shape=(batch_size, 1), dtype=np.int32)
+
+        buffer = collections.deque(maxlen=span)
+        for _ in range(span):
+            buffer.append(data[data_index])
+            # 循环选取 data中数据，到尾部则从头开始
+            data_index = (data_index + 1) % len(data)
+
+        for i in range(batch_size):
+            # target at the center of span
+            target = cbow_window
+            # 仅仅需要知道context(word)而不需要word
+            target_to_avoid = [cbow_window]
+
+            col_idx = 0
+            for j in range(span):
+                # 略过中心元素 word
+                if j == span // 2:
+                    continue
+                batch[i, col_idx] = buffer[j]
+                col_idx += 1
+            labels[i, 0] = buffer[target]
+            # 更新 buffer
+            buffer.append(data[data_index])
+            data_index = (data_index + 1) % len(data)
+        yield batch, labels
 
 
 # data, count, char2id, id2char = make_data(os.path.join(data_path, 'word2vec.train'), 4000)

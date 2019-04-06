@@ -34,11 +34,11 @@ valid_window = 100
 valid_examples = np.random.choice(valid_window, valid_size, replace=False)
 
 data_path = '../../../Data/CHN/DataSet1'
-log_dir = 'log'
+log_dir = 'log/Skip_Model'
 
-def word2vec():
-    data, count, char2id, id2char = make_data(os.path.join(data_path, 'word2vec.train'), 4000)
-    batch_gen = generate_batck(batch_size, num_skips, skip_window, data)
+def word2vec_skip():
+    data, count, char2id, id2char = make_data(os.path.join(data_path, 'word2vec.train'), vocabulary_size)
+    batch_gen = generate_skip_batch(batch_size, num_skips, skip_window, data)
 
     graph = tf.Graph()
 
@@ -178,4 +178,4 @@ def word2vec():
 
         writer.close()
 
-word2vec()
+word2vec_skip()
