@@ -5,6 +5,9 @@ from typing import List
 import numpy as np
 import pandas as pd
 import random
+import codecs
+import regex
+from collections import Counter
 
 # data_path = '../../../Data/CHN/DataSet1'
 
@@ -54,7 +57,6 @@ def make_data(file_name: str, max_count) -> List[dict]:
     count[0][1] = unk_count
     reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
     return data, count, dictionary, reversed_dictionary
-
 
 def generate_skip_batch(batch_size: int, num_skips: int, skip_window: int, data: List[int]):
     data_index = 0
@@ -116,6 +118,22 @@ def generate_cbow_batch(batch_size: int, cbow_window: int, data: List[int]):
             data_index = (data_index + 1) % len(data)
         yield batch, labels
 
+def make_word2cnt(in_fname, out_fname):
+    text = codecs.open(in_fname, 'r', 'utf-8').read()
+    text = regex.sub("\n", " ", text)
+    words = text.split()
+    word2cnt = Counter(words)
+    with codecs.open(out_fname, 'w', 'utf-8') as fout:
+        fout.write("{}\t1000000000\n{}\t1000000000\n{}\t1000000000\n{}\t1000000000\n".format("<PAD>", "<UNK>", "<S>", "</S>"))
+        for word, cnt in word2cnt.most_common(len(word2cnt)):
+            print(str(word), str(cnt))
+            fout.write(u"{}\t{}\n".format(word, cnt))
+
+data_path = '../../../Data/TrainData/open_data'
+in_fname = os.path.join(data_path, 'corpus_segment.txt')
+out_fname = os.path.join(data_path, 'word2cnt')
+
+make_word2cnt(in_fname, out_fname)
 
 # data, count, char2id, id2char = make_data(os.path.join(data_path, 'word2vec.train'), 4000)
 # print(data)
