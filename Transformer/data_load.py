@@ -18,20 +18,32 @@ def load_vocab():
     idx2word = {idx: word for idx, word in enumerate(vocab)}
     return word2idx, idx2word
 
+def load_relid2target():
+    relid2target_dict = {}
+    for relid, target in [line.split('\t') for line in codecs.open(hp.relid2target_path, 'r', 'utf-8').readlines() if line]:
+        relid2target_dict[relid] = int(target)
+    return relid2target_dict
+
 def create_data(sentences, targets):
 
     word2id, id2word = load_vocab()
     # Index
     x_list, y_list, Sentences, Targets = [], [], [], []
+
+    i_count = 0
     for sentence, target in zip(sentences, targets):
+        print(i_count)
+        i_count += 1
+
         x = [word2id.get(word, 1) for word in (sentence + u" </S>").split()] # 1: OOV, </S>: End of Text
         y = tf.one_hot(target, hp.class_num)
-        if len(x) <=hp.maxlen:
+        if len(x) <= hp.maxlen:
             x_list.append(np.array(x))
             y_list.append(np.array(y))
             Sentences.append(sentence)
             Targets.append(target)
-    
+    print(len(x_list), len(y_list))
+    print(x_list[0].shape, y_list[0].shape)
     # Pad      
     X = np.zeros([len(x_list), hp.maxlen], np.int32)
     Y = np.zeros([len(y_list), hp.class_num], np.int32)
@@ -42,39 +54,37 @@ def create_data(sentences, targets):
     return X, Y, Sentences, Targets
 
 def load_train_data():
-    # de_sents = [regex.sub("[^\s\p{Latin}']", "", line) for line in codecs.open(hp.source_train, 'r', 'utf-8').read().split("\n") if line and line[0] != "<"]
-    # en_sents = [regex.sub("[^\s\p{Latin}']", "", line) for line in codecs.open(hp.target_train, 'r', 'utf-8').read().split("\n") if line and line[0] != "<"]
     # 构建句子id到关系id映射表
-    sent_rel_train = [line.strip().split() for line in codecs.open(hp.sent2rel_train_path, 'r', 'utf-8').readlines() if line]
+    sent_rel_train = [line.strip().split('\t') for line in codecs.open(hp.sent2rel_train_path, 'r', 'utf-8').readlines() if line]
     sentid2relid = {}
 
-    for line_sent in sent_rel_train:
-        sentid = line_sent[0]
-        relids = line_sent[1:]
-        sentid2relid[sentid] = relids
+    for sentid, relids in sent_rel_train:
+        sentid2relid[sentid] = relids.split()
+
     #构建句子集合,对应的关系id集合
     train_sentences = []
     train_targets = []
-    for train_sentid, train_sentence in [line.strip().split() for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
+    for train_sentid, _, _, train_sentence in [line.strip().split('\t') for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
         for relid in sentid2relid[train_sentid]:
             train_sentences.append(train_sentence)
-            train_targets.append(relid)
+            train_targets.append(int(relid))
         # train_sentences.append(train_sentence)
         # train_targets.append(sentid2relid[train_sentid])
 
+    print('len', len(train_sentences), len(train_targets))
     X, Y, Sources, Targets = create_data(train_sentences, train_targets)
     return X, Y
     
 def load_test_data():
     # 构建句子id到关系id映射表
-    sent_rel_train = [line.strip().split() for line in codecs.open(hp.sent2rel_test_path, 'r', 'utf-8').readlines() if line]
+    sent_rel_train = [line.strip().split('\t') for line in codecs.open(hp.sent2rel_test_path, 'r', 'utf-8').readlines() if line]
     sentid2relid = {}
     for sentid, relid in sent_rel_train:
         sentid2relid[sentid] = relid
     # 构建句子集合,对应的关系id集合
     train_sentences = []
     train_targets = []
-    for train_sentid, train_sentence in [line.strip().split() for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
+    for train_sentid, _, _, train_sentence in [line.strip().split('\t') for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
         for relid in sentid2relid[train_sentid]:
             train_sentences.append(train_sentence)
             train_targets.append(relid)

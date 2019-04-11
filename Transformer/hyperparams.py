@@ -6,6 +6,8 @@ class Hyperparams:
     # data
     data_base_dir = '../Data/TrainData/open_data/open_data'
 
+    relid2target_path = '../Data/TrainData/open_data/open_data/relation2id.txt'
+
     sent2rel_train_path = '../Data/TrainData/open_data/open_data/sent_relation_train.txt'
     train_senteces_path = '../Data/TrainData/open_data/pro_data/sent_train.txt'
 

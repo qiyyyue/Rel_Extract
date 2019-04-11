@@ -30,22 +30,15 @@ def eval():
             ## Restore parameters
             sv.saver.restore(sess, tf.train.latest_checkpoint(hp.logdir))
             print("Restored!")
-              
-            ## Get model name
-            mname = open(hp.logdir + '/checkpoint', 'r').read().split('"')[1] # model name
-             
-            ## Inference
-            if not os.path.exists('results'): os.mkdir('results')
-            with codecs.open("results/" + mname, "w", "utf-8") as fout:
-                list_of_refs, hypotheses = [], []
-                for i in range(len(X) // hp.batch_size):
-                     
-                    ### Get mini-batches
-                    x = X[i*hp.batch_size: (i+1)*hp.batch_size]
-                    y = Y[i*hp.batch_size: (i+1)*hp.batch_size]
 
-                    _preds, _acc = sess.run(g.preds, g.acc, {g.x: x, g.y: y})
-                    print(_preds, _acc)
+            for i in range(len(X) // hp.batch_size):
+
+                ### Get mini-batches
+                x = X[i*hp.batch_size: (i+1)*hp.batch_size]
+                y = Y[i*hp.batch_size: (i+1)*hp.batch_size]
+
+                _preds, _acc = sess.run(g.preds, g.acc, {g.x: x, g.y: y})
+                print(_preds, _acc)
                      
 
                                           
