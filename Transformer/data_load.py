@@ -47,36 +47,40 @@ def load_train_data():
     # 构建句子id到关系id映射表
     sent_rel_train = [line.strip().split() for line in codecs.open(hp.sent2rel_train_path, 'r', 'utf-8').readlines() if line]
     sentid2relid = {}
-    print(sent_rel_train)
-    for sentid, relid in sent_rel_train:
-        print(sentid, relid)
-        sentid2relid[sentid] = relid
+
+    for line_sent in sent_rel_train:
+        sentid = line_sent[0]
+        relids = line_sent[1:]
+        sentid2relid[sentid] = relids
     #构建句子集合,对应的关系id集合
     train_sentences = []
     train_targets = []
     for train_sentid, train_sentence in [line.strip().split() for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
-        train_sentences.append(train_sentence)
-        train_targets.append(sentid2relid[train_sentid])
+        for relid in sentid2relid[train_sentid]:
+            train_sentences.append(train_sentence)
+            train_targets.append(relid)
+        # train_sentences.append(train_sentence)
+        # train_targets.append(sentid2relid[train_sentid])
 
     X, Y, Sources, Targets = create_data(train_sentences, train_targets)
     return X, Y
     
-# def load_test_data():
-#     # 构建句子id到关系id映射表
-#     sent_rel_train = [line.strip().split() for line in codecs.open(hp.sent2rel_test_path, 'r', 'utf-8').readlines() if line]
-#     sentid2relid = {}
-#     for sentid, relid in sent_rel_train:
-#         sentid2relid[sentid] = relid
-#     # 构建句子集合,对应的关系id集合
-#     train_sentences = []
-#     train_targets = []
-#     for train_sentid, train_sentence in [line.strip().split() for line in
-#                                          codecs.open(hp.test_senteces_path, 'r', 'utf-8').readlines() if line]:
-#         train_sentences.append(train_sentence)
-#         train_targets.append(sentid2relid[train_sentid])
-#
-#     X, Y, Sources, Targets = create_data(train_sentences, train_targets)
-#    return X, Y
+def load_test_data():
+    # 构建句子id到关系id映射表
+    sent_rel_train = [line.strip().split() for line in codecs.open(hp.sent2rel_test_path, 'r', 'utf-8').readlines() if line]
+    sentid2relid = {}
+    for sentid, relid in sent_rel_train:
+        sentid2relid[sentid] = relid
+    # 构建句子集合,对应的关系id集合
+    train_sentences = []
+    train_targets = []
+    for train_sentid, train_sentence in [line.strip().split() for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
+        for relid in sentid2relid[train_sentid]:
+            train_sentences.append(train_sentence)
+            train_targets.append(relid)
+
+    X, Y, Sources, Targets = create_data(train_sentences, train_targets)
+    return X, Y
 
 def get_batch_data():
     # Load data
@@ -101,6 +105,6 @@ def get_batch_data():
                                 allow_smaller_final_batch=False)
 
     print(x.shape, y.shape, num_batch)
-    return x, y, num_batch # (N, T), (N, T), ()
+    return x, y, num_batch # (N, T), (N, num), ()
 
 get_batch_data()

@@ -9,7 +9,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 from Transformer.hyperparams import Hyperparams as hp
-from Transformer.data_load import get_batch_data, load_de_vocab, load_en_vocab
+from Transformer.data_load import get_batch_data, load_vocab
 from Transformer.modules import *
 import os, codecs
 from tqdm import tqdm
@@ -28,14 +28,13 @@ class Rel_Ext_Graph():
             self.decoder_inputs = tf.concat((tf.ones_like(self.y[:, :1]) * 2, self.y[:, :-1]), -1)  # 2:<S>
 
             # Load vocabulary
-            de2idx, idx2de = load_de_vocab()
-            en2idx, idx2en = load_en_vocab()
+            word2idx, idx2word = load_vocab()
 
             # Encoder
             with tf.variable_scope("encoder"):
                 ## Embedding
                 self.enc = embedding(self.x,
-                                     vocab_size=len(de2idx),
+                                     vocab_size=len(word2idx),
                                      num_units=hp.hidden_units,
                                      scale=True,
                                      scope="enc_embed")
@@ -103,8 +102,7 @@ class Rel_Ext_Graph():
 
 if __name__ == '__main__':                
     # Load vocabulary    
-    de2idx, idx2de = load_de_vocab()
-    en2idx, idx2en = load_en_vocab()
+    word2idx, idx2word = load_vocab()
     
     # Construct graph
     g = Rel_Ext_Graph("train")
