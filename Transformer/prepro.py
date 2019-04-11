@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 #/usr/bin/python3
 from __future__ import print_function
+
+from typing import List
+
 from Transformer.hyperparams import Hyperparams as hp
 import tensorflow as tf
 import numpy as np
@@ -9,26 +12,30 @@ import os
 import regex
 from collections import Counter
 
-def make_vocab(fpath, fname):
+def make_vocab(org_files: List[str], des_file: str):
     '''Constructs vocabulary.
     
     Args:
-      fpath: A string. Input file path.
-      fname: A string. Output file name.
+      org_files: A string List. Input file path.
+      des_file: A string. Output file name.
     
-    Writes vocabulary line by line to `preprocessed/fname`
+    Writes vocabulary line by line to `des_file`
     '''  
-    text = codecs.open(fpath, 'r', 'utf-8').read()
-    text = regex.sub("[^\s\p{Latin}']", "", text)
-    words = text.split()
+    words = []
+    for file in org_files:
+        rf = codecs.open(file, 'r', 'utf-8')
+        for line in rf:
+            words += line.strip().split('\t')[-1].split()
     word2cnt = Counter(words)
-    if not os.path.exists('preprocessed'): os.mkdir('preprocessed')
-    with codecs.open('preprocessed/{}'.format(fname), 'w', 'utf-8') as fout:
-        fout.write("{}\t1000000000\n{}\t1000000000\n{}\t1000000000\n{}\t1000000000\n".format("<PAD>", "<UNK>", "<S>", "</S>"))
-        for word, cnt in word2cnt.most_common(len(word2cnt)):
-            fout.write(u"{}\t{}\n".format(word, cnt))
+    wf = codecs.open(des_file, 'w', 'utf-8')
+    wf.write("{}\t1000000000\n{}\t1000000000\n{}\t1000000000\n{}\t1000000000\n".format("<PAD>", "<UNK>", "<S>", "</S>"))
+    for word, cnt in word2cnt.most_common(len(word2cnt)):
+        wf.write(u"{}\t{}\n".format(word, cnt))
 
 if __name__ == '__main__':
-    make_vocab(hp.source_train, "de.vocab.tsv")
-    make_vocab(hp.target_train, "en.vocab.tsv")
-    print("Done")
+    org_base_path = '../Data/TrainData/open_data/pro_data'
+    org_file_list = ['sent_test.txt', 'sent_dev.txt', 'sent_train.txt']
+    for i in range(len(org_file_list)):
+        org_file_list[i] = os.path.join(org_base_path, org_file_list[i])
+    des_file = os.path.join(org_base_path, 'vocab_cnt.txt')
+    make_vocab(org_file_list, des_file)

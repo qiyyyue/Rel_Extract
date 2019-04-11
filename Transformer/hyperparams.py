@@ -9,6 +9,11 @@ class Hyperparams:
     '''Hyperparameters'''
     # data
     train_data_base_dir = '../Data/TrainData/open_data/open_data'
+    sent2rel_train_path = '../Data/TrainData/open_data/open_data/sent_relation_train.txt'
+    train_senteces_path = '../Data/TrainData/open_data/pro_data/sent_train.txt'
+    vocab_path = '../Data/TrainData/open_data/pro_data/vocab_cnt.txt'
+    class_num = 35
+
 
     # training
     batch_size = 32 # alias = N
