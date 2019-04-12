@@ -10,7 +10,6 @@ import numpy as np
 from Transformer.hyperparams import Hyperparams as hp
 from Transformer.data_load import load_test_data, load_vocab
 from Transformer.train import Rel_Ext_Graph
-from nltk.translate.bleu_score import corpus_bleu
 
 def eval(): 
     # Load graph
@@ -19,6 +18,12 @@ def eval():
     
     # Load data
     X, Y = load_test_data()
+
+    state = np.random.get_state()
+    np.random.shuffle(X)
+    np.random.set_state(state)
+    np.random.shuffle(Y)
+
     word2idx, idx2word = load_vocab()
      
 #     X, Sources, Targets = X[:33], Sources[:33], Targets[:33]
@@ -31,14 +36,20 @@ def eval():
             sv.saver.restore(sess, tf.train.latest_checkpoint(hp.logdir))
             print("Restored!")
 
+            avg_acc = .0
             for i in range(len(X) // hp.batch_size):
 
                 ### Get mini-batches
                 x = X[i*hp.batch_size: (i+1)*hp.batch_size]
                 y = Y[i*hp.batch_size: (i+1)*hp.batch_size]
 
-                _preds, _acc = sess.run(g.preds, g.acc, {g.x: x, g.y: y})
-                print(_preds, _acc)
+                _preds, _true_preds, _acc = sess.run([g.preds, g.true_preds, g.acc], {g.x: x, g.y: y})
+                res_preds = zip(_preds, _true_preds)
+                print([(_pred, _true_pred) for _pred, _true_pred in res_preds if (_pred != 0 and _true_pred)])
+                print(_acc)
+                avg_acc += _acc
+            avg_acc /= (len(X) // hp.batch_size)
+            print(avg_acc)
                      
 
                                           

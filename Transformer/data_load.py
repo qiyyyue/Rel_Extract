@@ -7,6 +7,7 @@ https://www.github.com/kyubyong/transformer
 '''
 from __future__ import print_function
 from Transformer.hyperparams import Hyperparams as hp
+from sklearn import preprocessing
 import tensorflow as tf
 import numpy as np
 import codecs
@@ -30,20 +31,17 @@ def create_data(sentences, targets):
     # Index
     x_list, y_list, Sentences, Targets = [], [], [], []
 
-    i_count = 0
     for sentence, target in zip(sentences, targets):
-        print(i_count)
-        i_count += 1
-
         x = [word2id.get(word, 1) for word in (sentence + u" </S>").split()] # 1: OOV, </S>: End of Text
-        y = tf.one_hot(target, hp.class_num)
+        y = [0]*hp.class_num
+        y[target] = 1
         if len(x) <= hp.maxlen:
             x_list.append(np.array(x))
             y_list.append(np.array(y))
             Sentences.append(sentence)
             Targets.append(target)
     print(len(x_list), len(y_list))
-    print(x_list[0].shape, y_list[0].shape)
+    print('shape', x_list[0].shape, y_list[0].shape)
     # Pad      
     X = np.zeros([len(x_list), hp.maxlen], np.int32)
     Y = np.zeros([len(y_list), hp.class_num], np.int32)
@@ -71,23 +69,23 @@ def load_train_data():
         # train_sentences.append(train_sentence)
         # train_targets.append(sentid2relid[train_sentid])
 
-    print('len', len(train_sentences), len(train_targets))
+    #print('len', len(train_sentences), len(train_targets))
     X, Y, Sources, Targets = create_data(train_sentences, train_targets)
     return X, Y
     
 def load_test_data():
     # 构建句子id到关系id映射表
-    sent_rel_train = [line.strip().split('\t') for line in codecs.open(hp.sent2rel_test_path, 'r', 'utf-8').readlines() if line]
+    sent_rel_train = [line.strip().split('\t') for line in codecs.open(hp.sent2rel_dev_path, 'r', 'utf-8').readlines() if line]
     sentid2relid = {}
     for sentid, relid in sent_rel_train:
         sentid2relid[sentid] = relid
     # 构建句子集合,对应的关系id集合
     train_sentences = []
     train_targets = []
-    for train_sentid, _, _, train_sentence in [line.strip().split('\t') for line in codecs.open(hp.train_senteces_path, 'r', 'utf-8').readlines() if line]:
+    for train_sentid, _, _, train_sentence in [line.strip().split('\t') for line in codecs.open(hp.dev_senteces_path, 'r', 'utf-8').readlines() if line]:
         for relid in sentid2relid[train_sentid]:
             train_sentences.append(train_sentence)
-            train_targets.append(relid)
+            train_targets.append(int(relid))
 
     X, Y, Sources, Targets = create_data(train_sentences, train_targets)
     return X, Y
@@ -98,23 +96,33 @@ def get_batch_data():
     
     # calc total batch count
     num_batch = len(X) // hp.batch_size
-    
-    # Convert to tensor
-    X = tf.convert_to_tensor(X, tf.int32)
-    Y = tf.convert_to_tensor(Y, tf.int32)
-    
-    # Create Queues
-    input_queues = tf.train.slice_input_producer([X, Y])
-            
-    # create batch queues
-    x, y = tf.train.shuffle_batch(input_queues,
-                                num_threads=8,
-                                batch_size=hp.batch_size, 
-                                capacity=hp.batch_size*64,   
-                                min_after_dequeue=hp.batch_size*32, 
-                                allow_smaller_final_batch=False)
+    # print(num_batch)
 
-    print(x.shape, y.shape, num_batch)
-    return x, y, num_batch # (N, T), (N, num), ()
+    state = np.random.get_state()
+    np.random.shuffle(X)
+    np.random.set_state(state)
+    np.random.shuffle(Y)
 
-get_batch_data()
+    # # Convert to tensor
+    # X = tf.convert_to_tensor(X, tf.int32)
+    # Y = tf.convert_to_tensor(Y, tf.int32)
+
+    for i in range(num_batch):
+        batch_x = X[i*hp.batch_size: (i + 1)*hp.batch_size]
+        batch_y = Y[i*hp.batch_size: (i + 1)*hp.batch_size]
+        yield batch_x, batch_y
+
+    # # Create Queues
+    # input_queues = tf.train.slice_input_producer([X, Y])
+    #
+    # # create batch queues
+    # x, y = tf.train.shuffle_batch(input_queues,
+    #                             num_threads=12,
+    #                             batch_size=hp.batch_size,
+    #                             capacity=hp.batch_size*64,
+    #                             min_after_dequeue=hp.batch_size*32,
+    #                             allow_smaller_final_batch=False)
+    #
+    # #print(x.shape, y.shape, num_batch)
+    # return x, y, num_batch # (N, T), (N, class_num), ()
+

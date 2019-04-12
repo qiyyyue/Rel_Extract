@@ -1,13 +1,8 @@
 # -*- coding: utf-8 -*-
-#/usr/bin/python2
-'''
-June 2017 by kyubyong park. 
-kbpark.linguist@gmail.com.
-https://www.github.com/kyubyong/transformer
-'''
 
 from __future__ import print_function
 import tensorflow as tf
+import numpy as np
 
 def normalize(inputs, 
               epsilon = 1e-8,
@@ -141,7 +136,6 @@ def positional_encoding(inputs,
     N, T = inputs.get_shape().as_list()
     with tf.variable_scope(scope, reuse=reuse):
         position_ind = tf.tile(tf.expand_dims(tf.range(T), 0), [N, 1])
-
         # First part of the PE function: sin and cos argument
         position_enc = np.array([
             [pos / np.power(10000, 2.*i/num_units) for i in range(num_units)]
