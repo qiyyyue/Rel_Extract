@@ -20,7 +20,7 @@ class Hyperparams:
 
 
     # training
-    batch_size = 256 # alias = N
+    batch_size = 512 # alias = N
     lr = 0.0001 # learning rate. In paper, learning rate is adjusted to the global step.
     logdir = '../Model/Transformer_log/' # log directory
     

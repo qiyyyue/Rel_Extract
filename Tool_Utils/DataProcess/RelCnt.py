@@ -11,8 +11,14 @@ for rels_line in rels_lines:
         rels.append(rel)
 
 rel_cnt = Counter(rels).most_common(len(rels))
+
+# max_cnt = max([cnt for _, cnt in rel_cnt])
+sum_cnt = sum([cnt for _, cnt in rel_cnt])
+# print(max_cnt, sum_cnt)
+# print(int(max_cnt)/sum_cnt)
+
 print(len(rel_cnt))
-wf = codecs.open('../../Data/TrainData/open_data/rel2cnt.txt', 'w', 'utf-8')
+wf = codecs.open('../../Data/TrainData/open_data/train_rel2cnt.txt', 'w', 'utf-8')
 for rel, cnt in rel_cnt:
-    print(rel, cnt)
-    wf.write(u'{}\t{}\n'.format(rel, cnt))
+    print(rel, cnt, '%.5f'%(cnt/sum_cnt))
+    wf.write(u'{}\t{}\t{:.5f}\n'.format(rel, cnt, cnt/sum_cnt))
