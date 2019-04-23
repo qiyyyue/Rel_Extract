@@ -33,7 +33,7 @@ def make_vocab(org_files: List[str], des_file: str):
         wf.write(u"{}\t{}\n".format(word, cnt))
 
 if __name__ == '__main__':
-    org_base_path = '../Data/TrainData/open_data/pro_data'
+    org_base_path = '../Data/TrainData/open_data/open_data'
     org_file_list = ['sent_test.txt', 'sent_dev.txt', 'sent_train.txt']
     for i in range(len(org_file_list)):
         org_file_list[i] = os.path.join(org_base_path, org_file_list[i])

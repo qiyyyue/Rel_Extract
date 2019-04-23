@@ -1,145 +1,138 @@
 # -*- coding: utf-8 -*-
-#/usr/bin/python2
-'''
-June 2017 by kyubyong park. 
-kbpark.linguist@gmail.com.
-https://www.github.com/kyubyong/transformer
-'''
+
 from __future__ import print_function
 import tensorflow as tf
+from sklearn import metrics
 
 from Transformer.hyperparams import Hyperparams as hp
-from Transformer.data_load import get_batch_data, load_vocab
+from Transformer.data_load import get_batch_data, load_vocab, load_dev_data
 from Transformer.modules import *
+from Transformer.transformer_model import Transformer_Model
 import os, codecs
+import time
+from datetime import timedelta
 from tqdm import tqdm
 
-class Rel_Ext_Graph():
-    def __init__(self, is_training=True):
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            # if is_training:
-            #     self.x, self.y, self.num_batch = get_batch_data()  # (N, T)
-            # else:  # inference
-            self.x = tf.placeholder(tf.int32, shape=(None, hp.maxlen))
-            self.y = tf.placeholder(tf.int32, shape=(None, hp.class_num))
+save_dir = '../CheckPionts/Transformer/Transformer_1'
+tensorboard_dir = '../tensorboard/Transformer/Transformer_1'
+save_path = os.path.join(save_dir, 'model')
 
-            # Load vocabulary
-            word2idx, idx2word = load_vocab()
+def get_time_dif(start_time):
+    """获取已使用时间"""
+    end_time = time.time()
+    time_dif = end_time - start_time
+    return timedelta(seconds=int(round(time_dif)))
 
-            # Encoder
-            with tf.variable_scope("encoder"):
-                ## Embedding
-                # self.enc = embedding(self.x,
-                #                      vocab_size=len(word2idx),
-                #                      num_units=hp.hidden_units,
-                #                      scale=True,
-                #                      scope="enc_embed")
+def evaluate(sess, model):
 
-                with tf.variable_scope('enc_embed', reuse=None):
-                    lookup_table = tf.get_variable('lookup_table',
-                                                   dtype=tf.float32,
-                                                   shape=[len(word2idx), hp.hidden_units],
-                                                   initializer=tf.contrib.layers.xavier_initializer())
-                    self.lookup_table = tf.concat((tf.zeros(shape=[1, hp.hidden_units]),lookup_table[1:, :]), 0)
-                    self.enc = tf.nn.embedding_lookup(lookup_table, self.x)
-                    self.enc = self.enc * (hp.hidden_units ** 0.5)
+    X, Y = load_dev_data()
 
-                self.embd = self.enc
+    indices = np.random.permutation(np.arange(len(X)))
+    X = X[indices]
+    Y = Y[indices]
 
-                key_masks = tf.expand_dims(tf.sign(tf.reduce_sum(tf.abs(self.enc), axis=-1)), -1)
+    sum_loss = .0
+    sum_acc = .0
+    y_val_cls, y_pred_cls = np.zeros(shape=len(X), dtype=np.int32), np.zeros(shape=len(X), dtype=np.int32)
+    for i in range(len(X) // hp.batch_size):
+        start_id = i * hp.batch_size
+        end_id = min((i + 1) * hp.batch_size, len(X))
+        ### Get mini-batches
+        x = X[i * hp.batch_size: (i + 1) * hp.batch_size]
+        y = Y[i * hp.batch_size: (i + 1) * hp.batch_size]
 
-                ## Positional Encoding
-                if hp.sinusoid:
-                    self.enc += positional_encoding(self.x,
-                                                    num_units=hp.hidden_units,
-                                                    zero_pad=False,
-                                                    scale=False,
-                                                    scope="enc_pe")
+        _loss, _acc = sess.run([model.loss, model.acc], {model.x: x, model.y: y})
+        y_val_cls[start_id: end_id], y_pred_cls[start_id: end_id] = sess.run([model.y_label, model.preds], {model.x: x, model.y: y})
+
+        sum_loss += _loss
+        sum_acc += _acc
+    print("Precision, Recall and F1-Score...")
+    print(y_val_cls)
+    print(y_pred_cls)
+    print(metrics.classification_report(y_val_cls, y_pred_cls))
+
+    # 混淆矩阵
+    print("Confusion Matrix...")
+    cm = metrics.confusion_matrix(y_val_cls, y_pred_cls)
+    print(cm)
+
+    print('val acc is {:.4f}'.format(sum_acc / (len(X) // hp.batch_size)))
+    return sum_loss/(len(X) // hp.batch_size), sum_acc/(len(X) // hp.batch_size)
+
+def train():
+    g = Transformer_Model(_is_traing = True)
+    print("Graph loaded")
+
+    if not os.path.exists(tensorboard_dir):
+        os.makedirs(tensorboard_dir)
+
+    tf.summary.scalar("loss", g.loss)
+    tf.summary.scalar("accuracy", g.acc)
+    merged_summary = tf.summary.merge_all()
+    writer = tf.summary.FileWriter(tensorboard_dir)
+
+    # 配置 Saver
+    saver = tf.train.Saver()
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    writer.add_graph(sess.graph)
+
+    start_time = time.time()
+    total_batch = 1  # 总批次
+    best_acc_val = 0.0  # 最佳验证集准确率
+    last_improved = 0  # 记录上一次提升批次
+    require_improvement = 2000  # 如果超过1000轮未提升，提前结束训练
+
+    for epoch in range(1, hp.num_epochs + 1):
+        for x, y in get_batch_data():
+            feed_dict = {g.x: x, g.y: y}
+
+            _preds = sess.run([g.preds], {g.x: x, g.y: y})
+            _acc, _loss, _ = sess.run([g.acc, g.loss, g.train_op], feed_dict=feed_dict)
+            print(_acc, _loss)
+            if total_batch % hp.save_per_batch == 0:
+                # 每多少轮次将训练结果写入tensorboard scalar
+                s = sess.run(merged_summary, feed_dict=feed_dict)
+                writer.add_summary(s, total_batch)
+
+            if total_batch % hp.print_per_batch == 0:
+                # 每多少轮次输出在训练集和验证集上的性能
+                loss_train, acc_train = sess.run([g.loss, g.acc], feed_dict=feed_dict)
+                loss_val, acc_val = evaluate(sess, g)  # todo
+
+                if acc_val > best_acc_val:
+                    # 保存最好结果
+                    best_acc_val = acc_val
+                    last_improved = total_batch
+                    saver.save(sess=sess, save_path=save_path)
+                    improved_str = '*'
                 else:
-                    self.enc += embedding(
-                        tf.tile(tf.expand_dims(tf.range(tf.shape(self.x)[1]), 0), [tf.shape(self.x)[0], 1]),
-                        vocab_size=hp.maxlen,
-                        num_units=hp.hidden_units,
-                        zero_pad=False,
-                        scale=False,
-                        scope="enc_pe")
+                    improved_str = ''
 
-                self.position = self.enc
+                time_dif = get_time_dif(start_time)
+                msg = 'Iter: {0:>6}, Train Loss: {1:>6.2}, Train Acc: {2:>7.2%},' \
+                      + ' Val Loss: {3:>6.2}, Val Acc: {4:>7.2%}, Time: {5} {6}'
+                print(msg.format(total_batch, loss_train, acc_train, loss_val, acc_val, time_dif, improved_str))
 
-                self.enc *= key_masks
+            sess.run(g.train_op, feed_dict=feed_dict)
+            total_batch += 1
+        #     if total_batch - last_improved > require_improvement:
+        #         # 验证集正确率长期不提升，提前结束训练
+        #         print("No optimization for a long time, auto-stopping...")
+        #         flag = True
+        #         break  # 跳出循环
+        # if flag:  # 同上
+        #     break
 
-                ## Dropout
-                self.enc = tf.layers.dropout(self.enc,
-                                             rate=hp.dropout_rate,
-                                             training=tf.convert_to_tensor(is_training))
+    print("Done")
 
-                ## Blocks
-                for i in range(hp.num_blocks):
-                    with tf.variable_scope("num_blocks_{}".format(i)):
-                        ### Multihead Attention
-                        self.enc = multihead_attention(queries=self.enc,
-                                                       keys=self.enc,
-                                                       num_units=hp.hidden_units,
-                                                       num_heads=hp.num_heads,
-                                                       dropout_rate=hp.dropout_rate,
-                                                       is_training=is_training,
-                                                       causality=False)
-                        self.mutihead = self.enc
-                        ### Feed Forward
-                        self.enc = feedforward(self.enc, num_units=[4 * hp.hidden_units, hp.hidden_units])
-            # Final linear projection
-            self.logits = tf.layers.dense(self.enc, hp.class_num)
-            self.logits = tf.reshape(self.logits, [-1, hp.maxlen*hp.class_num])
-            self.logits = tf.layers.dense(self.logits, hp.class_num)
 
-            self.preds = tf.to_int32(tf.arg_max(tf.nn.softmax(self.logits, axis=-1), dimension=-1))
-            self.y_label = tf.to_int32(tf.argmax(self.y, -1))
-            self.true_preds = tf.equal(self.preds, self.y_label)
-
-            self.acc = tf.reduce_mean(tf.cast(tf.equal(self.y_label, self.preds), tf.float32))
-
-            if is_training:
-                self.y_smoothed = label_smoothing(tf.cast(self.y, dtype=tf.float32))
-                self.loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y_smoothed)
-                self.loss = tf.reduce_mean(self.loss)
-                self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=hp.lr, beta1=0.9, beta2=0.98, epsilon=1e-8)
-                self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
-
-                # Summary
-                tf.summary.scalar('mean_loss', self.loss)
-                self.merged = tf.summary.merge_all()
 
 
 if __name__ == '__main__':                
-    # Load vocabulary    
-    word2idx, idx2word = load_vocab()
-    
-    # Construct graph
-    g = Rel_Ext_Graph(is_training=True)
-    print("Graph loaded")
-    
-    # Start session
-    sv = tf.train.Supervisor(graph=g.graph, 
-                             logdir=hp.logdir,
-                             save_model_secs=0)
-    with sv.managed_session() as sess:
-        for epoch in range(1, hp.num_epochs+1): 
-            if sv.should_stop(): break
-            for x, y in get_batch_data():
-                try:
-                    _preds = sess.run([g.preds], {g.x: x, g.y: y})
-                    print(_preds)
-                    _acc, _loss, _ = sess.run([g.acc, g.loss, g.train_op], {g.x: x, g.y: y})
-                    print(_acc, _loss)
-                except Exception as e:
-                    print(x, y)
-            try:
-                gs = sess.run(g.global_step)
-                sv.saver.save(sess, hp.logdir + '/model_epoch_%02d_gs_%d' % (epoch, gs))
-            except Exception as e:
-                print(epoch, gs)
-    print("Done")    
+    train()
     
 
